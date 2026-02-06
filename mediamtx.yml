@@ -1,0 +1,91 @@
+# MediaMTX 配置文件
+# https://github.com/bluenviron/mediamtx
+
+# ================================================
+# 日志配置
+# ================================================
+logLevel: info
+logDestinations: [stdout]
+logFile: 
+
+# ================================================
+# 性能配置
+# ================================================
+readBufferCount: 512
+writeBufferCount: 512
+
+# ================================================
+# RTSP 配置
+# ================================================
+rtsp: true
+rtspAddress: :8554
+rtspTransport: tcp
+rtspEncryption: false
+rtspsAddress: :8322
+rtpAddress: :8000
+rtcpAddress: :8001
+multicastIPRange: 224.1.0.0/16
+multicastRTPPort: 8002
+multicastRTCPPort: 8003
+
+# ================================================
+# RTMP 配置 (备用)
+# ================================================
+rtmp: false
+rtmpAddress: :1935
+
+# ================================================
+# HLS 配置 (备用)
+# ================================================
+hls: true
+hlsAddress: :8888
+hlsAlwaysRemux: false
+hlsVariant: fmp4
+hlsSegmentCount: 3
+hlsSegmentDuration: 2s
+hlsPartDuration: 500ms
+hlsSegmentMaxSize: 50M
+hlsAllowOrigin: '*'
+hlsEnable: true
+
+# ================================================
+# WebRTC 配置 (主要)
+# ================================================
+webrtc: true
+webrtcAddress: :8889
+webrtcEncryption: false
+webrtcAllowOrigin: '*'
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcIPsFromInterfaces: []
+webrtcAdditionalHosts: []
+webrtcICEUDPMuxAddress: :8189
+webrtcICETCPMuxAddress: :8189
+webrtcICEHosts: []
+
+# ================================================
+# 路径配置
+# ================================================
+paths:
+  # 摄像头实时流
+  cam1:
+    # RTSP 源地址 (通过环境变量传入)
+    source: ${CAMERA_RTSP_URL}
+    sourceProtocol: tcp
+    sourceOnDemand: false
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    maxReaders: 10
+    
+  # 所有录像播放
+  recording:
+    source: publisher
+    sourceOnDemand: true
+    sourceOnDemandStartTimeout: 5s
+    sourceOnDemandCloseAfter: 5s
+    
+  # 默认配置
+  all:
+    source: publisher
+    sourceOnDemand: false
+    maxReaders: 10
