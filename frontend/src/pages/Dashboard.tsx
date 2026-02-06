@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { storageApi, streamApi } from '../api';
+import { Link } from 'react-router-dom';
+import { storageApi, streamApi, cameraApi } from '../api';
 import VideoPlayer from '../components/VideoPlayer';
 import PTZControl from '../components/PTZControl';
 import StorageStatus from '../components/StorageStatus';
+import { Camera, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const [showPTZ, setShowPTZ] = useState(true);
@@ -19,6 +21,32 @@ export default function DashboardPage() {
     queryFn: () => streamApi.getStatus(),
     refetchInterval: 5000,
   });
+
+  const { data: cameraConfig, isLoading: cameraLoading } = useQuery({
+    queryKey: ['camera-config'],
+    queryFn: () => cameraApi.getConfig(),
+    retry: false,
+  });
+
+  // 如果没有配置摄像头，显示引导页面
+  if (!cameraLoading && (!cameraConfig?.data.data || cameraConfig.data.error)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Camera className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">未配置摄像头</h2>
+          <p className="text-gray-500 mb-6">请先配置摄像头才能查看实时监控</p>
+          <Link
+            to="/camera-setup"
+            className="btn-primary inline-flex items-center"
+          >
+            配置摄像头
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

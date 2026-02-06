@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
-import { Camera, Film, Settings as SettingsIcon, LogOut, Menu, X } from 'lucide-react';
+import { Camera, Film, Settings as SettingsIcon, LogOut, Menu, X, Scan } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface Props {
@@ -15,6 +15,7 @@ export default function Layout({ children }: Props) {
   const navigation = [
     { name: '实时监控', href: '/', icon: Camera },
     { name: '录像回放', href: '/recordings', icon: Film },
+    { name: '摄像头配置', href: '/camera-setup', icon: Scan },
     { name: '系统设置', href: '/settings', icon: SettingsIcon },
   ];
 

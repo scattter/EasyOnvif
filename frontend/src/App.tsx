@@ -5,6 +5,7 @@ import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RecordingsPage from './pages/Recordings';
 import SettingsPage from './pages/Settings';
+import CameraSetupPage from './pages/CameraSetup';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -19,6 +20,7 @@ function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/recordings" element={<RecordingsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/camera-setup" element={<CameraSetupPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
