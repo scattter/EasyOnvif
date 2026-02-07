@@ -85,7 +85,7 @@ export default function CameraSetupPage() {
       discoveryApi.autoDiscover(device.ip, device.port, username, password),
     onSuccess: () => {
       toast.success('摄像头配置成功！');
-      window.location.reload();
+      window.location.href = '/devices';
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error?.message || '配置失败');

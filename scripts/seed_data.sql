@@ -3,7 +3,7 @@
 -- 默认用户 (密码: admin)
 -- bcrypt hash for 'admin' with cost 12
 INSERT OR IGNORE INTO users (id, username, password_hash, is_default_password) 
-VALUES (1, 'admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiAYMyzJ/I3O', 1);
+VALUES (1, 'admin', '$2b$10$yjD5lsafRbgNRORZn5Gx4.ufa5haC.wllhCZ9E9pyJ6udJm9QcagG', 1);
 
 -- 默认设置
 INSERT OR IGNORE INTO settings (key, value, description) VALUES

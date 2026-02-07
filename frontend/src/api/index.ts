@@ -76,8 +76,16 @@ export const streamApi = {
   getWebRTCUrl: () =>
     api.get<ApiResponse<{ whepUrl: string; iceServers: any[] }>>('/stream/webrtc'),
   
-  getStatus: () =>
-    api.get<ApiResponse<{ isStreaming: boolean; viewers: number; bitrate: string; resolution: string; fps: number }>>('/stream/status'),
+  getMjpegUrl: () =>
+    api.get<ApiResponse<{ mjpegUrl: string; type: string }>>('/stream/mjpeg'),
+  
+  getWsUrl: () =>
+    api.get<ApiResponse<{ wsUrl: string; type: string }>>('/stream/ws'),
+
+  getStatus: (options?: { showFps?: boolean }) =>
+    api.get<ApiResponse<{ isStreaming: boolean; viewers: number; type: string; resolution: string | null; fps: number | null; bitrate: string | null; zoomRatio: number }>>('/stream/status', {
+      params: { showFps: options?.showFps },
+    }),
 };
 
 // 录像相关
@@ -113,7 +121,7 @@ export const storageApi = {
 // 发现相关
 export const discoveryApi = {
   scanNetwork: () =>
-    api.post<ApiResponse<{ count: number; devices: Array<{
+    api.post<ApiResponse<{ count: number, devices: Array<{
       ip: string;
       port: number;
       onvifUrl: string;
@@ -121,24 +129,27 @@ export const discoveryApi = {
       model?: string;
       serialNumber?: string;
       firmwareVersion?: string;
-    }> } }>>('/discovery/scan', { mode: 'network' }),
+    }> } >>('/discovery/scan', { mode: 'network' }),
 
   scanRange: (startIp: string, endIp: string, port?: number) =>
     api.post<ApiResponse<{ count: number; devices: Array<{
       ip: string;
       port: number;
       onvifUrl: string;
-    }> } }>>('/discovery/scan', { mode: 'range', startIp, endIp, port }),
+    }> } >>('/discovery/scan', { mode: 'range', startIp, endIp, port }),
 
   testSingle: (ip: string, port?: number, username?: string, password?: string) =>
     api.post<ApiResponse<{ count: number; devices: Array<{
       ip: string;
       port: number;
       onvifUrl: string;
-    }> } }>>('/discovery/scan', { mode: 'single', ip, port, username, password }),
+    }> } >>('/discovery/scan', { mode: 'single', ip, port, username, password }),
 
   getStreamUri: (ip: string, port: number, onvifUrl: string, username?: string, password?: string) =>
     api.post<ApiResponse<{ rtspUrl: string }>>('/discovery/stream-uri', { ip, port, onvifUrl, username, password }),
+
+  getMjpegUrl: (ip: string, port: number, username?: string, password?: string) =>
+    api.post<ApiResponse<{ mjpegUrl: string }>>('/discovery/mjpeg-url', { ip, port, username, password }),
 
   configure: (data: {
     ip: string;

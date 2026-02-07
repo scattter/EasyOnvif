@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { ptzApi } from '../api';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
@@ -13,20 +14,24 @@ export default function PTZControl() {
       ptzApi.zoom(direction as any, speed),
   });
 
-  const handleMove = (direction: string) => {
+  // 触发一次移动
+  const handleMove = useCallback((direction: string) => {
     moveMutation.mutate({ direction, speed: 0.5 });
-  };
+  }, [moveMutation]);
 
-  const handleMoveStop = () => {
-    moveMutation.mutate({ direction: 'stop' });
-  };
-
-  const handleZoom = (direction: string) => {
+  // 触发一次缩放
+  const handleZoom = useCallback((direction: string) => {
     zoomMutation.mutate({ direction, speed: 0.3 });
-  };
+  }, [zoomMutation]);
 
-  const handleZoomStop = () => {
-    zoomMutation.mutate({ direction: 'stop' });
+  // 处理鼠标/触摸事件
+  const handleInteraction = (direction: string, type: 'move' | 'zoom') => (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (type === 'move') {
+      handleMove(direction);
+    } else {
+      handleZoom(direction);
+    }
   };
 
   return (
@@ -35,26 +40,18 @@ export default function PTZControl() {
       
       <div className="space-y-6">
         {/* 方向控制 */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center select-none">
           <button
-            onMouseDown={() => handleMove('up')}
-            onMouseUp={handleMoveStop}
-            onMouseLeave={handleMoveStop}
-            onTouchStart={() => handleMove('up')}
-            onTouchEnd={handleMoveStop}
-            className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+            onClick={handleInteraction('up', 'move')}
+            className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
           >
             <ChevronUp className="w-6 h-6" />
           </button>
           
           <div className="flex space-x-4 my-2">
             <button
-              onMouseDown={() => handleMove('left')}
-              onMouseUp={handleMoveStop}
-              onMouseLeave={handleMoveStop}
-              onTouchStart={() => handleMove('left')}
-              onTouchEnd={handleMoveStop}
-              className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+              onClick={handleInteraction('left', 'move')}
+              className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -64,24 +61,16 @@ export default function PTZControl() {
             </div>
             
             <button
-              onMouseDown={() => handleMove('right')}
-              onMouseUp={handleMoveStop}
-              onMouseLeave={handleMoveStop}
-              onTouchStart={() => handleMove('right')}
-              onTouchEnd={handleMoveStop}
-              className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+              onClick={handleInteraction('right', 'move')}
+              className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
             >
               <ChevronRight className="w-6 h-6" />
             </button>
           </div>
           
           <button
-            onMouseDown={() => handleMove('down')}
-            onMouseUp={handleMoveStop}
-            onMouseLeave={handleMoveStop}
-            onTouchStart={() => handleMove('down')}
-            onTouchEnd={handleMoveStop}
-            className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+            onClick={handleInteraction('down', 'move')}
+            className="p-3 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
           >
             <ChevronDown className="w-6 h-6" />
           </button>
@@ -90,29 +79,33 @@ export default function PTZControl() {
         {/* 缩放控制 */}
         <div className="flex justify-center space-x-4">
           <button
-            onMouseDown={() => handleZoom('out')}
-            onMouseUp={handleZoomStop}
-            onMouseLeave={handleZoomStop}
-            onTouchStart={() => handleZoom('out')}
-            onTouchEnd={handleZoomStop}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+            onClick={handleInteraction('out', 'zoom')}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
           >
             <ZoomOut className="w-5 h-5" />
             <span>缩小</span>
           </button>
           
           <button
-            onMouseDown={() => handleZoom('in')}
-            onMouseUp={handleZoomStop}
-            onMouseLeave={handleZoomStop}
-            onTouchStart={() => handleZoom('in')}
-            onTouchEnd={handleZoomStop}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300"
+            onClick={handleInteraction('in', 'zoom')}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 touch-none"
           >
             <ZoomIn className="w-5 h-5" />
             <span>放大</span>
           </button>
         </div>
+
+        {/* 状态提示 */}
+        {(moveMutation.isPending || zoomMutation.isPending) && (
+          <div className="text-center text-sm text-gray-500">
+            正在控制...
+          </div>
+        )}
+        {(moveMutation.isError || zoomMutation.isError) && (
+          <div className="text-center text-sm text-red-500">
+            控制失败，请重试
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import fp from 'fastify-plugin';
 import { z } from 'zod';
 import { onvifDiscoveryService } from '../services/discovery';
 import { CameraModel } from '../models';
@@ -141,7 +140,7 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       );
 
       if (!streamUri) {
-        return reply.status(404).send({
+        return reply.status(400).send({
           success: false,
           error: {
             code: 'STREAM_NOT_FOUND',
@@ -179,6 +178,62 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
     }
   });
 
+  // 获取设备的MJPEG流地址
+  fastify.post('/mjpeg-url', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    try {
+      const { ip, port, username, password } = z.object({
+        ip: z.string().ip(),
+        port: z.number().default(80),
+        username: z.string().optional(),
+        password: z.string().optional(),
+      }).parse(request.body);
+
+      const mjpegUrl = await onvifDiscoveryService.getMjpegUrl(
+        ip,
+        port,
+        username,
+        password
+      );
+
+      if (!mjpegUrl) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'MJPEG_NOT_FOUND',
+            message: '无法获取MJPEG流地址',
+          },
+        });
+      }
+
+      return {
+        success: true,
+        data: {
+          mjpegUrl,
+        },
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: '参数错误',
+            details: error.errors,
+          },
+        });
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: 'STREAM_ERROR',
+          message: '获取MJPEG地址失败',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  });
+
   // 自动配置摄像头
   fastify.post('/configure', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     try {
@@ -203,7 +258,7 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       );
 
       if (!streamUri) {
-        return reply.status(404).send({
+        return reply.status(400).send({
           success: false,
           error: {
             code: 'STREAM_NOT_FOUND',
@@ -273,7 +328,7 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       const device = await onvifDiscoveryService.testOnvifDevice(ip, port, username, password);
       
       if (!device) {
-        return reply.status(404).send({
+        return reply.status(400).send({
           success: false,
           error: {
             code: 'DEVICE_NOT_FOUND',
@@ -300,43 +355,29 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
         password
       );
 
-      if (!streamUri) {
-        return reply.status(404).send({
-          success: false,
-          error: {
-            code: 'STREAM_NOT_FOUND',
-            message: '无法获取视频流地址，请检查用户名密码是否正确',
-          },
-        });
-      }
-
-      // 4. 保存配置
+      // 4. 保存到数据库
       const config = CameraModel.upsert({
         name: `${deviceInfo.manufacturer || 'ONVIF'} ${deviceInfo.model || 'Camera'}`,
         ip: device.ip,
         port: device.port,
-        username,
-        password,
-        rtspUrl: streamUri,
+        username: username,
+        password: password,
+        rtspUrl: streamUri || undefined,
         onvifUrl: device.onvifUrl,
         capabilities: {
-          ptz: true,
+          ptz: true, // 默认假设支持PTZ，后续可以通过GetCapabilities校准
           zoom: true,
           events: ['motion', 'tampering'],
         },
-        status: 'connected',
+        status: streamUri ? 'connected' : 'disconnected', // 有流地址才算连接成功
       });
 
       return {
         success: true,
         data: {
-          message: '摄像头配置成功',
-          device: {
-            ...config,
-            password: undefined,
-          },
-          info: deviceInfo,
-        },
+          ...config,
+          password: undefined,
+        }
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -349,7 +390,6 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
           },
         });
       }
-
       return reply.status(500).send({
         success: false,
         error: {
@@ -362,4 +402,4 @@ const discoveryPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   });
 };
 
-export const discoveryRoutes = fp(discoveryPlugin);
+export const discoveryRoutes = discoveryPlugin;

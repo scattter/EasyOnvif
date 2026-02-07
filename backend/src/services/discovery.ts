@@ -32,6 +32,14 @@ export class OnvifDiscoveryService {
   </Body>
 </Envelope>`;
 
+  private readonly probeSoapBody = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:tds="http://www.onvif.org/ver10/device/wsdl">
+  <soap:Header/>
+  <soap:Body>
+    <tds:GetSystemDateAndTime/>
+  </soap:Body>
+</soap:Envelope>`;
+
   /**
    * 扫描局域网内的ONVIF设备
    */
@@ -131,19 +139,61 @@ export class OnvifDiscoveryService {
       ];
 
       for (const endpoint of endpoints) {
+        const onvifUrl = `http://${ip}:${port}${endpoint}`;
+        
+        // 1. 尝试GET请求 (轻量级)
         try {
-          const onvifUrl = `http://${ip}:${port}${endpoint}`;
+          console.log(`Testing endpoint (GET): ${onvifUrl}`);
           const response = await this.httpRequest(onvifUrl, username, password);
           
           if (response.includes('onvif') || response.includes('ONVIF')) {
+            console.log(`Endpoint confirmed (GET): ${onvifUrl}`);
             return {
               ip,
               port,
               onvifUrl,
             };
           }
-        } catch {
-          continue;
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          console.log(`Endpoint failed (GET): ${onvifUrl}`, errMsg);
+          
+          // 如果返回401(未授权)或405(方法不允许)，说明服务存在
+          if (errMsg.includes('HTTP 401') || errMsg.includes('HTTP 405')) {
+            console.log(`Endpoint found (auth required or method not allowed): ${onvifUrl}`);
+            return {
+              ip,
+              port,
+              onvifUrl,
+            };
+          }
+        }
+
+        // 2. 尝试POST请求 (GetSystemDateAndTime) - 更健壮，解决某些设备不支持GET的问题
+        try {
+          console.log(`Testing endpoint (POST): ${onvifUrl}`);
+          const response = await this.httpRequest(onvifUrl, username, password, this.probeSoapBody);
+          
+          if (response.includes('GetSystemDateAndTimeResponse') || response.includes('onvif') || response.includes('ONVIF')) {
+            console.log(`Endpoint confirmed (POST): ${onvifUrl}`);
+            return {
+              ip,
+              port,
+              onvifUrl,
+            };
+          }
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          console.log(`Endpoint failed (POST): ${onvifUrl}`, errMsg);
+          
+          if (errMsg.includes('HTTP 401') || errMsg.includes('HTTP 405')) {
+            console.log(`Endpoint found (auth required or method not allowed): ${onvifUrl}`);
+            return {
+              ip,
+              port,
+              onvifUrl,
+            };
+          }
         }
       }
 
@@ -171,20 +221,59 @@ export class OnvifDiscoveryService {
       
       // 解析XML响应
       const parser = new xml2js.Parser({ explicitArray: false });
-      const result = await promisify(parser.parseString.bind(parser))(response);
+      const parseString = (str: string) => new Promise<any>((resolve, reject) => parser.parseString(str, (err: any, result: any) => err ? reject(err) : resolve(result)));
+      const result = await parseString(response);
       
       const info = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['tds:GetDeviceInformationResponse'];
       
       return {
-        manufacturer: info?.tds:Manufacturer,
-        model: info?.tds:Model,
-        serialNumber: info?.tds:SerialNumber,
-        firmwareVersion: info?.tds:FirmwareVersion,
+        manufacturer: info?.['tds:Manufacturer'],
+        model: info?.['tds:Model'],
+        serialNumber: info?.['tds:SerialNumber'],
+        firmwareVersion: info?.['tds:FirmwareVersion'],
       };
     } catch (error) {
       console.error('获取设备信息失败:', error);
       return {};
     }
+  }
+
+  /**
+   * 获取MJPEG流地址（尝试多个常见路径）
+   */
+  async getMjpegUrl(ip: string, port: number, username?: string, password?: string): Promise<string | null> {
+    const mjpegPaths = [
+      '/stream.jpg',           // TP-Link 常见格式
+      '/cgi-bin/video.cgi',
+      '/mjpeg.cgi',
+      '/video.cgi',
+      '/mjpg/video.mjpg',
+      '/cgi-bin/mjpg/video.cgi',
+      '/live/stream.jpg',
+    ];
+
+    for (const path of mjpegPaths) {
+      const url = `http://${ip}:${port}${path}`;
+      try {
+        const response = await this.httpRequest(url, username, password);
+        // 如果请求成功且内容看起来是图片流，则返回该URL
+        if (response.includes('image') || response.includes('JFIF') || response.includes('\xff\xd8')) {
+          console.log(`Found MJPEG endpoint: ${url}`);
+          return url;
+        }
+      } catch (error: any) {
+        // 检查是否是401错误（需要认证）
+        if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
+          // 这个路径存在但需要认证，记录下来
+          console.log(`MJPEG endpoint found (auth required): ${url}`);
+          return url;
+        }
+        // 其他错误继续尝试下一个路径
+      }
+    }
+
+    // 默认返回最常见的TP-Link格式
+    return `http://${ip}:${port}/stream.jpg`;
   }
 
   /**
@@ -217,9 +306,10 @@ export class OnvifDiscoveryService {
       
       // 解析响应获取RTSP地址
       const parser = new xml2js.Parser({ explicitArray: false });
-      const result = await promisify(parser.parseString.bind(parser))(response);
+      const parseString = (str: string) => new Promise<any>((resolve, reject) => parser.parseString(str, (err: any, result: any) => err ? reject(err) : resolve(result)));
+      const result = await parseString(response);
       
-      const uri = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['trt:GetStreamUriResponse']?.trt:MediaUri?.tt:Uri;
+      const uri = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['trt:GetStreamUriResponse']?.['trt:MediaUri']?.['tt:Uri'];
       
       return uri || null;
     } catch (error) {
@@ -234,7 +324,8 @@ export class OnvifDiscoveryService {
   private async parseDiscoveryResponse(xml: string, ip: string): Promise<DiscoveredDevice | null> {
     try {
       const parser = new xml2js.Parser({ explicitArray: false });
-      const result = await promisify(parser.parseString.bind(parser))(xml);
+      const parseString = (str: string) => new Promise<any>((resolve, reject) => parser.parseString(str, (err: any, result: any) => err ? reject(err) : resolve(result)));
+      const result = await parseString(xml);
       
       const probeMatch = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['wsdd:ProbeMatches']?.['wsdd:ProbeMatch'];
       
@@ -275,9 +366,10 @@ export class OnvifDiscoveryService {
       
       // 解析响应找到Media服务
       const parser = new xml2js.Parser({ explicitArray: false });
-      const result = await promisify(parser.parseString.bind(parser))(response);
+      const parseString = (str: string) => new Promise<any>((resolve, reject) => parser.parseString(str, (err: any, result: any) => err ? reject(err) : resolve(result)));
+      const result = await parseString(response);
       
-      const services = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['tds:GetServicesResponse']?.tds:Service;
+      const services = result?.['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['tds:GetServicesResponse']?.['tds:Service'];
       
       if (Array.isArray(services)) {
         const mediaService = services.find(s => s['tds:Namespace']?.includes('media'));

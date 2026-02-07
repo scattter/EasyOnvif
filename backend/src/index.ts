@@ -15,6 +15,8 @@ import { storageRoutes } from './routes/storage';
 import { systemRoutes } from './routes/system';
 import { discoveryRoutes } from './routes/discovery';
 import { errorHandler } from './middleware/error';
+import authPlugin from './plugins/auth';
+import { StreamService } from './services/stream';
 
 dotenv.config();
 
@@ -75,6 +77,9 @@ async function registerPlugins() {
   await app.register(swaggerUi, {
     routePrefix: '/documentation',
   });
+
+  // Auth decorator
+  await app.register(authPlugin);
 }
 
 // 注册路由
@@ -106,6 +111,9 @@ async function start() {
   try {
     await registerPlugins();
     await registerRoutes();
+
+    // Start Stream Service
+    StreamService.getInstance().init(9999);
 
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';

@@ -3,8 +3,8 @@
 
 set -e
 
-DB_PATH="storage/config/database.sqlite"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DB_PATH="${SCRIPT_DIR}/../storage/config/database.sqlite"
 
 echo "Initializing EasyONVIF database..."
 

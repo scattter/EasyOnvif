@@ -9,6 +9,7 @@ import { Camera, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const [showPTZ, setShowPTZ] = useState(true);
+  const [showFps, setShowFps] = useState(true);
   
   const { data: storageData } = useQuery({
     queryKey: ['storage-status'],
@@ -17,8 +18,8 @@ export default function DashboardPage() {
   });
 
   const { data: streamData } = useQuery({
-    queryKey: ['stream-status'],
-    queryFn: () => streamApi.getStatus(),
+    queryKey: ['stream-status', showFps],
+    queryFn: () => streamApi.getStatus({ showFps }),
     refetchInterval: 5000,
   });
 
@@ -60,6 +61,12 @@ export default function DashboardPage() {
           >
             {showPTZ ? '隐藏控制' : '显示控制'}
           </button>
+          <button
+            onClick={() => setShowFps(!showFps)}
+            className="btn-secondary text-sm"
+          >
+            {showFps ? '隐藏帧率' : '显示帧率'}
+          </button>
         </div>
       </div>
 
@@ -78,7 +85,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 状态信息 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 ${showFps ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
         <div className="card p-4">
           <div className="text-sm text-gray-500">连接状态</div>
           <div className="text-lg font-semibold text-green-600">
@@ -89,13 +96,23 @@ export default function DashboardPage() {
           <div className="text-sm text-gray-500">分辨率</div>
           <div className="text-lg font-semibold">{streamData?.data.data.resolution || '-'}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-sm text-gray-500">帧率</div>
-          <div className="text-lg font-semibold">{streamData?.data.data.fps || '-'} FPS</div>
-        </div>
+        {showFps && (
+          <div className="card p-4">
+            <div className="text-sm text-gray-500">帧率</div>
+            <div className="text-lg font-semibold">
+              {typeof streamData?.data.data.fps === 'number' ? `${streamData?.data.data.fps} FPS` : '-'}
+            </div>
+          </div>
+        )}
         <div className="card p-4">
           <div className="text-sm text-gray-500">码率</div>
           <div className="text-lg font-semibold">{streamData?.data.data.bitrate || '-'}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-sm text-gray-500">放大比例</div>
+          <div className="text-lg font-semibold">
+            {typeof streamData?.data.data.zoomRatio === 'number' ? `${streamData?.data.data.zoomRatio.toFixed(2)}x` : '-'}
+          </div>
         </div>
       </div>
     </div>
