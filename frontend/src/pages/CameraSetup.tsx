@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { discoveryApi, cameraApi } from '../api';
 import { Scan, Search, Check, AlertCircle, Loader2, Wifi, Settings } from 'lucide-react';

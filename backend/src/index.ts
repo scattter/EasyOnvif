@@ -17,6 +17,9 @@ import { discoveryRoutes } from './routes/discovery';
 import { errorHandler } from './middleware/error';
 import authPlugin from './plugins/auth';
 import { StreamService } from './services/stream';
+import { onvifService } from './services/onvif';
+import { recordingService } from './services/recording';
+import { SettingModel } from './models';
 
 dotenv.config();
 
@@ -112,8 +115,29 @@ async function start() {
     await registerPlugins();
     await registerRoutes();
 
-    // Start Stream Service
     StreamService.getInstance().init(9999);
+    await recordingService.startPrebuffer();
+    await onvifService.startEventListener((event: any) => {
+      const subscriptions = (SettingModel.get('events.subscriptions') || '')
+        .split(',')
+        .map(item => item.trim().toLowerCase())
+        .filter(Boolean);
+      const allowMotion = subscriptions.length === 0 || subscriptions.includes('motion');
+      if (!allowMotion) {
+        return;
+      }
+      const text = JSON.stringify(event).toLowerCase();
+      const isMotion = ['motion', 'cellmotion', 'motionalarm', 'videomotion'].some(keyword =>
+        text.includes(keyword)
+      );
+      if (!isMotion) {
+        return;
+      }
+      recordingService.handleMotionEvent({
+        message: 'motion',
+        payload: event,
+      }).catch(() => {});
+    });
 
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';

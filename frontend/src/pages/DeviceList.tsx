@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { cameraApi } from '../api';
 import { Link } from 'react-router-dom';
-import { Plus, Camera, Settings, Tv, AlertCircle } from 'lucide-react';
+import { Plus, Camera, Settings, Tv } from 'lucide-react';
 
 export default function DeviceListPage() {
+  const queryClient = useQueryClient();
   const { data: cameraConfig, isLoading } = useQuery({
     queryKey: ['camera-config'],
     queryFn: () => cameraApi.getConfig(),
@@ -11,6 +13,55 @@ export default function DeviceListPage() {
   });
 
   const device = cameraConfig?.data?.data;
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    ip: '',
+    port: 80,
+    username: '',
+    password: '',
+    rtspUrl: '',
+    onvifUrl: '',
+  });
+
+  useEffect(() => {
+    if (!device) {
+      return;
+    }
+    setForm({
+      name: device.name || '',
+      ip: device.ip || '',
+      port: device.port || 80,
+      username: device.username || '',
+      password: '',
+      rtspUrl: device.rtspUrl || '',
+      onvifUrl: device.onvifUrl || '',
+    });
+  }, [device]);
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: {
+      name?: string | null;
+      ip: string;
+      port?: number;
+      username?: string | null;
+      password?: string | null;
+      rtspUrl?: string | null;
+      onvifUrl?: string | null;
+    }) => cameraApi.updateConfig(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['camera-config'] });
+      setIsEditing(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => cameraApi.deleteConfig(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['camera-config'] });
+      setIsEditing(false);
+    },
+  });
 
   if (isLoading) {
     return (
@@ -103,10 +154,116 @@ export default function DeviceListPage() {
                  <Link to="/" className="flex-1 text-center inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 shadow-sm">
                     <Tv className="w-4 h-4 mr-1.5" /> 实时画面
                  </Link>
-                 <Link to="/camera-setup" className="flex-1 text-center inline-flex justify-center items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm">
-                    <Settings className="w-4 h-4 mr-1.5" /> 重新配置
-                 </Link>
+                 <button
+                   onClick={() => setIsEditing(!isEditing)}
+                   className="flex-1 text-center inline-flex justify-center items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
+                 >
+                   <Settings className="w-4 h-4 mr-1.5" /> {isEditing ? '取消编辑' : '编辑设备'}
+                 </button>
               </div>
+              {isEditing && (
+                <div className="mt-4 space-y-3 border-t pt-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">名称</label>
+                      <input
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        className="input text-sm"
+                        placeholder="摄像头"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">IP</label>
+                      <input
+                        value={form.ip}
+                        onChange={(e) => setForm({ ...form, ip: e.target.value })}
+                        className="input text-sm"
+                        placeholder="192.168.1.100"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">端口</label>
+                      <input
+                        type="number"
+                        value={form.port}
+                        onChange={(e) => setForm({ ...form, port: Number(e.target.value) || 0 })}
+                        className="input text-sm"
+                        placeholder="80"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">用户名</label>
+                      <input
+                        value={form.username}
+                        onChange={(e) => setForm({ ...form, username: e.target.value })}
+                        className="input text-sm"
+                        placeholder="admin"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">密码</label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      className="input text-sm"
+                      placeholder="留空表示不变"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">RTSP 地址</label>
+                    <input
+                      value={form.rtspUrl}
+                      onChange={(e) => setForm({ ...form, rtspUrl: e.target.value })}
+                      className="input text-sm"
+                      placeholder="rtsp://user:pass@ip:554/stream1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">ONVIF 地址</label>
+                    <input
+                      value={form.onvifUrl}
+                      onChange={(e) => setForm({ ...form, onvifUrl: e.target.value })}
+                      className="input text-sm"
+                      placeholder="http://ip:port/onvif/device_service"
+                    />
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        updateMutation.mutate({
+                          name: form.name ? form.name : undefined,
+                          ip: form.ip,
+                          port: form.port,
+                          username: form.username ? form.username : null,
+                          password: form.password ? form.password : undefined,
+                          rtspUrl: form.rtspUrl ? form.rtspUrl : null,
+                          onvifUrl: form.onvifUrl ? form.onvifUrl : null,
+                        });
+                      }}
+                      disabled={updateMutation.isPending}
+                      className="flex-1 btn-primary text-sm disabled:opacity-50"
+                    >
+                      保存修改
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('确定移除当前设备配置吗？')) {
+                          deleteMutation.mutate();
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      className="flex-1 btn-secondary text-sm text-red-600 disabled:opacity-50"
+                    >
+                      移除设备
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

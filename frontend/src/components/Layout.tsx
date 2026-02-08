@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
-import { Camera, Film, Settings as SettingsIcon, LogOut, Menu, X, Scan, List } from 'lucide-react';
+import { Camera, Film, Settings as SettingsIcon, LogOut, Menu, X, List } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface Props {

@@ -49,11 +49,14 @@ export const cameraApi = {
   getConfig: () =>
     api.get<ApiResponse<any>>('/camera/config'),
   
-  updateConfig: (config: { name?: string; ip: string; port?: number; username?: string; password?: string; rtspUrl?: string }) =>
+  updateConfig: (config: { name?: string | null; ip: string; port?: number; username?: string | null; password?: string | null; rtspUrl?: string | null; onvifUrl?: string | null }) =>
     api.put<ApiResponse<any>>('/camera/config', config),
   
   testConnection: (config: { ip: string; port?: number; username?: string; password?: string }) =>
     api.post<ApiResponse<{ reachable: boolean; onvifSupported: boolean; capabilities: { ptz: boolean; zoom: boolean; events: string[] } }>>('/camera/test', config),
+
+  deleteConfig: () =>
+    api.delete<ApiResponse<void>>('/camera/config'),
 };
 
 // PTZ 控制

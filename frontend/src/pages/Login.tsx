@@ -5,8 +5,8 @@ import { authApi } from '../api';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   
   const setAuth = useAuthStore((state) => state.setAuth);
 

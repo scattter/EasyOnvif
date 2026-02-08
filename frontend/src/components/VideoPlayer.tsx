@@ -42,6 +42,8 @@ export default function VideoPlayer() {
           audio: false, // Disable audio for now to avoid issues
           loop: true,
           videoBufferSize: 1024 * 1024, // 1MB buffer
+          disableWebAssembly: true,
+          disableGl: true,
         });
       } catch (e) {
         console.error('JSMpeg initialization error:', e);
