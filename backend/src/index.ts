@@ -5,6 +5,8 @@ import jwt from '@fastify/jwt';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import dotenv from 'dotenv';
+import path from 'path';
+import fastifyStatic from '@fastify/static';
 import { authRoutes } from './routes/auth';
 import { cameraRoutes } from './routes/camera';
 import { ptzRoutes } from './routes/ptz';
@@ -19,6 +21,7 @@ import authPlugin from './plugins/auth';
 import { StreamService } from './services/stream';
 import { onvifService } from './services/onvif';
 import { recordingService } from './services/recording';
+import { MotionDetector } from './services/motion';
 import { SettingModel } from './models';
 
 dotenv.config();
@@ -81,6 +84,14 @@ async function registerPlugins() {
     routePrefix: '/documentation',
   });
 
+  // Serve static files (storage)
+  // Serve at /public/storage so we can access recordings directly
+  await app.register(fastifyStatic, {
+    root: path.join(process.cwd(), '../storage'),
+    prefix: '/public/storage/',
+    decorateReply: false // Avoid conflict if other plugins use decorateReply
+  });
+
   // Auth decorator
   await app.register(authPlugin);
 }
@@ -117,6 +128,19 @@ async function start() {
 
     StreamService.getInstance().init(9999);
     await recordingService.startPrebuffer();
+    
+    // Start Software Motion Detector
+    const motionDetector = MotionDetector.getInstance();
+    motionDetector.on('motion', () => {
+      recordingService.handleMotionEvent({
+        message: 'Motion detected (Software Analysis)',
+        source: 'MotionDetector',
+      }).catch(err => app.log.error(err));
+    });
+    motionDetector.start();
+
+    // ONVIF Event Listener disabled in favor of software motion detection
+    /*
     await onvifService.startEventListener((event: any) => {
       const subscriptions = (SettingModel.get('events.subscriptions') || '')
         .split(',')
@@ -138,6 +162,7 @@ async function start() {
         payload: event,
       }).catch(() => {});
     });
+    */
 
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';

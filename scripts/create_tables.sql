@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS camera_config (
   rtsp_url TEXT,
   onvif_url TEXT,
   capabilities TEXT,
+  motion_config TEXT,
   status TEXT DEFAULT 'disconnected',
   last_connected_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

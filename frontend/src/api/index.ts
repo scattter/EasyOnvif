@@ -49,7 +49,26 @@ export const cameraApi = {
   getConfig: () =>
     api.get<ApiResponse<any>>('/camera/config'),
   
-  updateConfig: (config: { name?: string | null; ip: string; port?: number; username?: string | null; password?: string | null; rtspUrl?: string | null; onvifUrl?: string | null }) =>
+  updateConfig: (config: { 
+    name?: string | null; 
+    ip: string; 
+    port?: number; 
+    username?: string | null; 
+    password?: string | null; 
+    rtspUrl?: string | null; 
+    onvifUrl?: string | null;
+    motionConfig?: {
+      enabled: boolean;
+      sensitivity: number;
+      threshold?: number;
+      regions: Array<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }>;
+    } | null;
+  }) =>
     api.put<ApiResponse<any>>('/camera/config', config),
   
   testConnection: (config: { ip: string; port?: number; username?: string; password?: string }) =>

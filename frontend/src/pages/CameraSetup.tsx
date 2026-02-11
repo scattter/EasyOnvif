@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { discoveryApi, cameraApi } from '../api';
-import { Scan, Search, Check, AlertCircle, Loader2, Wifi, Settings } from 'lucide-react';
+import { Scan, Search, Check, AlertCircle, Loader2, Wifi, Settings, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface DiscoveredDevice {
@@ -24,11 +24,41 @@ export default function CameraSetupPage() {
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredDevice[]>([]);
   const [configuringDevice, setConfiguringDevice] = useState<DiscoveredDevice | null>(null);
 
+  // Motion Detection State
+  const [motionEnabled, setMotionEnabled] = useState(false);
+  const [motionSensitivity, setMotionSensitivity] = useState(50);
+
   // 检查现有配置
-  const { data: existingConfig } = useQuery({
+  const { data: existingConfig, refetch: refetchConfig } = useQuery({
     queryKey: ['camera-config'],
     queryFn: () => cameraApi.getConfig(),
     retry: false,
+  });
+
+  useEffect(() => {
+    if (existingConfig?.data.data?.motionConfig) {
+      setMotionEnabled(existingConfig.data.data.motionConfig.enabled);
+      setMotionSensitivity(existingConfig.data.data.motionConfig.sensitivity);
+    }
+  }, [existingConfig]);
+
+  // Update Motion Config
+  const updateMotionConfigMutation = useMutation({
+    mutationFn: () => cameraApi.updateConfig({
+      ...existingConfig?.data.data,
+      motionConfig: {
+        enabled: motionEnabled,
+        sensitivity: motionSensitivity,
+        regions: [] // Default to full screen
+      }
+    }),
+    onSuccess: () => {
+      toast.success('移动检测配置已保存');
+      refetchConfig();
+    },
+    onError: () => {
+      toast.error('保存失败');
+    }
   });
 
   // 网络扫描
@@ -131,20 +161,76 @@ export default function CameraSetupPage() {
 
         {/* 现有配置提示 */}
         {existingConfig?.data.data && (
-          <div className="card p-4 mb-6 bg-yellow-50 border-yellow-200">
-            <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
-              <div>
-                <h3 className="font-medium text-yellow-800">已有摄像头配置</h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                  当前已配置: {existingConfig.data.data.name} ({existingConfig.data.data.ip})
-                </p>
-                <p className="text-sm text-yellow-600 mt-1">
-                  重新配置将覆盖现有设置
-                </p>
+          <>
+            <div className="card p-4 mb-6 bg-yellow-50 border-yellow-200">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
+                <div>
+                  <h3 className="font-medium text-yellow-800">已有摄像头配置</h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    当前已配置: {existingConfig.data.data.name} ({existingConfig.data.data.ip})
+                  </p>
+                  <p className="text-sm text-yellow-600 mt-1">
+                    重新配置将覆盖现有设置
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* 移动检测配置 */}
+            <div className="card p-6 mb-6">
+              <div className="flex items-center mb-4">
+                <Activity className="w-5 h-5 text-primary-600 mr-2" />
+                <h2 className="text-lg font-medium text-gray-900">移动检测设置</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">启用移动检测</label>
+                  <button
+                    onClick={() => setMotionEnabled(!motionEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      motionEnabled ? 'bg-primary-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        motionEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {motionEnabled && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      灵敏度: {motionSensitivity}
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={motionSensitivity}
+                      onChange={(e) => setMotionSensitivity(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>低 (1)</span>
+                      <span>高 (100)</span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => updateMotionConfigMutation.mutate()}
+                  disabled={updateMotionConfigMutation.isPending}
+                  className="w-full btn-secondary"
+                >
+                  {updateMotionConfigMutation.isPending ? '保存中...' : '保存设置'}
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* 扫描模式选择 */}
