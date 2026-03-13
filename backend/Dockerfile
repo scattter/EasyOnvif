@@ -3,15 +3,15 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# 复制 package.json
-COPY package*.json ./
-RUN npm ci
+# 复制依赖定义文件
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
 # 复制源代码
 COPY . .
 
 # 构建
-RUN npm run build
+RUN yarn build
 
 # 生产阶段
 FROM node:18-alpine
@@ -21,9 +21,9 @@ WORKDIR /app
 # 安装 FFmpeg
 RUN apk add --no-cache ffmpeg curl
 
-# 复制 package.json
-COPY package*.json ./
-RUN npm ci --only=production
+# 复制依赖定义文件
+COPY package.json yarn.lock ./
+RUN yarn install --production --frozen-lockfile && yarn cache clean
 
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
