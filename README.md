@@ -93,13 +93,91 @@ CAMERA_RTSP_URL=rtsp://admin:your_camera_password@192.168.1.100:554/stream1
 JWT_SECRET=change_this_to_random_string_32_chars
 ```
 
-3. 启动服务（使用发布版镜像）
+3. `docker-compose.release.yml` 示例（可直接保存为同名文件）
+```yaml
+services:
+  backend:
+    image: ${IMAGE_REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE:?please-set-IMAGE_NAMESPACE}/easy-onvif-backend:${IMAGE_TAG:-latest}
+    container_name: easy-onvif-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ./storage:/app/storage
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - STORAGE_QUOTA_GB=${STORAGE_QUOTA_GB:-50}
+      - PREBUFFER_SECONDS=${PREBUFFER_SECONDS:-10}
+      - POSTBUFFER_SECONDS=${POSTBUFFER_SECONDS:-60}
+      - CLEANUP_THRESHOLD=${CLEANUP_THRESHOLD:-90}
+      - TZ=${TZ:-Asia/Shanghai}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - CAMERA_IP=${CAMERA_IP}
+      - CAMERA_PORT=${CAMERA_PORT:-80}
+      - CAMERA_USERNAME=${CAMERA_USERNAME}
+      - CAMERA_PASSWORD=${CAMERA_PASSWORD}
+      - CAMERA_RTSP_URL=${CAMERA_RTSP_URL}
+    networks:
+      - easy-onvif
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: easy-onvif-mediamtx
+    restart: unless-stopped
+    ports:
+      - "${RTSP_PORT:-8554}:8554"
+      - "${WEBRTC_PORT:-8889}:8889"
+      - "8888:8888"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ./storage/events:/events:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - CAMERA_RTSP_URL=${CAMERA_RTSP_URL}
+    networks:
+      - easy-onvif
+    depends_on:
+      - backend
+
+  frontend:
+    image: ${IMAGE_REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE:?please-set-IMAGE_NAMESPACE}/easy-onvif-frontend:${IMAGE_TAG:-latest}
+    container_name: easy-onvif-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      - VITE_API_URL=http://backend:3000
+      - VITE_WEBRTC_URL=http://mediamtx:8889
+    networks:
+      - easy-onvif
+    depends_on:
+      - backend
+      - mediamtx
+
+networks:
+  easy-onvif:
+    driver: bridge
+
+volumes:
+  storage:
+    driver: local
+```
+
+4. 启动服务（使用发布版镜像）
 ```bash
 docker compose -f docker-compose.release.yml pull
 docker compose -f docker-compose.release.yml up -d
 ```
 
-4. 验证
+5. 验证
 - Web: `http://<主机IP>`
 - API 健康检查: `http://<主机IP>:3000/api/health`
 
