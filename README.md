@@ -48,6 +48,66 @@ docker-compose up -d
 默认账号: `admin`
 默认密码: `admin`
 
+## GitHub 自动构建镜像与 Docker Compose 部署
+
+### 1) 维护者：推送到 GitHub 后自动发布镜像
+
+本仓库已支持 GitHub Actions 自动构建发布。当 `master` 分支有新提交时，会自动构建并推送：
+
+- `ghcr.io/<仓库所有者>/easy-onvif-backend:latest`
+- `ghcr.io/<仓库所有者>/easy-onvif-frontend:latest`
+
+同时会生成 `sha-<commit>` 标签，便于回滚到指定版本。
+
+首次使用前，请确认：
+
+1. 代码已推送到 GitHub 仓库（默认分支是 `master`）。
+2. 仓库 `Settings -> Actions -> General -> Workflow permissions` 允许 `Read and write permissions`。
+3. 仓库 `Settings -> Packages` 或组织级设置允许发布 GHCR 包（建议镜像设为 public，便于用户免登录拉取）。
+
+### 2) 用户：通过 docker compose 直接部署发布镜像
+
+1. 获取项目文件
+```bash
+git clone <your-github-repo-url>
+cd EasyOnvif
+```
+
+2. 准备环境变量
+```bash
+cp .env.example .env
+```
+
+在 `.env` 中至少配置：
+```bash
+# 镜像来源（使用发布版 compose）
+IMAGE_REGISTRY=ghcr.io
+IMAGE_NAMESPACE=<仓库所有者，如 your-github-username>
+IMAGE_TAG=latest
+
+# 摄像头与安全参数
+CAMERA_IP=192.168.1.100
+CAMERA_USERNAME=admin
+CAMERA_PASSWORD=your_camera_password
+CAMERA_RTSP_URL=rtsp://admin:your_camera_password@192.168.1.100:554/stream1
+JWT_SECRET=change_this_to_random_string_32_chars
+```
+
+3. 启动服务（使用发布版镜像）
+```bash
+docker compose -f docker-compose.release.yml pull
+docker compose -f docker-compose.release.yml up -d
+```
+
+4. 验证
+- Web: `http://<主机IP>`
+- API 健康检查: `http://<主机IP>:3000/api/health`
+
+如果镜像是私有仓库，请先登录 GHCR：
+```bash
+docker login ghcr.io -u <github-username>
+```
+
 ## 项目结构
 
 ```
