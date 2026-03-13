@@ -1,14 +1,21 @@
-# 构建阶段
-FROM node:18-alpine AS builder
+# 依赖安装阶段（使用 glibc 基础镜像，减少 alpine/musl 下原生依赖失败概率）
+FROM node:18-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Alpine 下部分原生依赖（如 better-sqlite3）在 arm64 需要本地编译
-RUN apk add --no-cache python3 make g++
+# 原生依赖构建工具链
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖定义文件
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
+
+# 构建阶段
+FROM deps AS builder
+
+WORKDIR /app
 
 # 复制源代码
 COPY . .
@@ -17,16 +24,18 @@ COPY . .
 RUN yarn build
 
 # 生产阶段
-FROM node:18-alpine
+FROM node:18-bookworm-slim
 
 WORKDIR /app
 
-# 安装 FFmpeg
-RUN apk add --no-cache ffmpeg curl
+# 运行时依赖
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # 复用构建阶段已解析并编译好的依赖，避免生产阶段再次安装失败
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/node_modules ./node_modules
 
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
