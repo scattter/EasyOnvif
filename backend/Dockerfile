@@ -24,13 +24,9 @@ WORKDIR /app
 # 安装 FFmpeg
 RUN apk add --no-cache ffmpeg curl
 
-# 复制依赖定义文件
-COPY package.json yarn.lock ./
-# 生产依赖安装阶段同样需要编译工具，安装后清理以减小镜像体积
-RUN apk add --no-cache --virtual .build-deps python3 make g++ \
-    && yarn install --production --frozen-lockfile \
-    && yarn cache clean \
-    && apk del .build-deps
+# 复用构建阶段已解析并编译好的依赖，避免生产阶段再次安装失败
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
 
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
