@@ -8,9 +8,23 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
+ENV YARN_REGISTRY=https://registry.npmjs.org
+ENV YARN_NETWORK_TIMEOUT=600000
+
 # 复制依赖定义文件
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN set -eux; \
+    yarn config set registry "${YARN_REGISTRY}"; \
+    yarn config set network-timeout "${YARN_NETWORK_TIMEOUT}"; \
+    for i in 1 2 3; do \
+      yarn install --frozen-lockfile --non-interactive --network-timeout "${YARN_NETWORK_TIMEOUT}" && break; \
+      if [ "$i" -eq 3 ]; then \
+        echo "yarn install failed after ${i} attempts"; \
+        exit 1; \
+      fi; \
+      echo "yarn install failed, retrying (${i}/3)..."; \
+      sleep 10; \
+    done
 
 # 构建阶段
 FROM deps AS builder
