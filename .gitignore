@@ -47,9 +47,9 @@ database.sqlite
 *.db
 
 # 媒体文件
-*.mp4
-*.ts
-*.m3u8
+storage/**/*.mp4
+storage/**/*.ts
+storage/**/*.m3u8
 prebuffer/
 events/
 

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { cameraApi } from '../api';
 import { Link } from 'react-router-dom';
 import { Plus, Camera, Settings, Tv } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 export default function DeviceListPage() {
   const queryClient = useQueryClient();
