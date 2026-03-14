@@ -1,8 +1,8 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { randomUUID } from 'crypto';
 import { RecordingModel, SettingModel, EventModel, CameraModel } from '../models';
-import { v4 as uuidv4 } from 'uuid';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
 class RecordingService {
@@ -212,7 +212,7 @@ class RecordingService {
     const cameraConfig = this.getRtspUrl();
     if (!cameraConfig) throw new Error('RTSP URL 未配置');
 
-    const eventId = `evt_${Date.now()}_${uuidv4().slice(0, 8)}`;
+    const eventId = `evt_${Date.now()}_${randomUUID().slice(0, 8)}`;
     this.currentEventId = eventId;
     this.isRecordingEvent = true;
 
