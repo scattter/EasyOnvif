@@ -1,12 +1,15 @@
 import Database from 'better-sqlite3';
+import fs from 'fs';
 import path from 'path';
+import { resolveStorageRoot } from './storage-path';
 
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), '../storage/config/database.sqlite');
+const DB_PATH = process.env.DB_PATH || path.join(resolveStorageRoot(), 'config/database.sqlite');
 
 let db: Database.Database | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');

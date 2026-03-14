@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { RecordingModel, SettingModel, EventModel, CameraModel } from '../models';
+import { resolveStorageRoot } from '../utils/storage-path';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
 class RecordingService {
@@ -18,7 +19,7 @@ class RecordingService {
   private isRecordingEvent = false;
 
   private getStorageRoot(): string {
-    return process.env.STORAGE_PATH || path.join(process.cwd(), '../storage');
+    return resolveStorageRoot();
   }
 
   private getFfmpegPath(): string {

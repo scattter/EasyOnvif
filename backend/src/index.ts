@@ -23,6 +23,7 @@ import { onvifService } from './services/onvif';
 import { recordingService } from './services/recording';
 import { MotionDetector } from './services/motion';
 import { SettingModel } from './models';
+import { resolveStorageRoot } from './utils/storage-path';
 
 dotenv.config();
 
@@ -87,7 +88,7 @@ async function registerPlugins() {
   // Serve static files (storage)
   // Serve at /public/storage so we can access recordings directly
   await app.register(fastifyStatic, {
-    root: path.join(process.cwd(), '../storage'),
+    root: resolveStorageRoot(),
     prefix: '/public/storage/',
     decorateReply: false // Avoid conflict if other plugins use decorateReply
   });
